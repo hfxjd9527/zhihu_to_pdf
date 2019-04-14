@@ -111,7 +111,7 @@ class zhihu_infos:
             # 获取页数
             pageNum = pdfObj.numPages
 
-            for num in range(1, pageNum):
+            for num in range(pageNum):
                 pageContent = pdfObj.getPage(num)
                 newPdfFile.addPage(pageContent)
 
