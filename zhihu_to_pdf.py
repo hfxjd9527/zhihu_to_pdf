@@ -121,6 +121,7 @@ class zhihu_infos:
 
 
 if __name__ == "__main__":
+    start = time.time()
     zhihu_username = "你的账号"
     zhihu_password = "你的密码"
     z = zhihu_infos()
@@ -129,9 +130,16 @@ if __name__ == "__main__":
     for i in range(1, 4):
         url = 'https://www.zhihu.com/people/e-miao-de-nai-ba/answers?page=' + \
             str(i)
+        # 获得源代码
         pagedata = z.get_pagesource(url)
+        # 构造文件名
         base_file_name = "zhihu{}".format(i)
+        # 保存为html
         htmlname = z.save_to_html(base_file_name, pagedata)
+        # 将HTML文件保存为PDF
         z.html_to_pdf(base_file_name, htmlname)
     time.sleep(5)
+    # 将多个PDF合成一个
     z.Many_to_one()
+    end = time.time()
+    print("共计用时%.4f秒" % (end - start))
