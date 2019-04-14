@@ -1,0 +1,146 @@
+# #coding=utf-8
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+import os
+import multiprocessing
+import time
+from selenium import webdriver
+import pdfkit
+import PyPDF2
+
+
+class ZhihuInfos():
+    # 定义一个知乎类
+
+    url = 'https://www.zhihu.com/signup'
+    zhihu_username = "你的用户名"
+    zhihu_password = "你的密码"
+    options = webdriver.ChromeOptions()
+    options.add_experimental_option(
+        'excludeSwitches', ['enable-automation'])
+    browser = webdriver.Chrome(options=options)
+    wait = WebDriverWait(browser, 30)  # 超时时长为30s
+
+    pdf_path = "./pdf_file/"
+    if not os.path.exists(pdf_path):
+        os.makedirs(pdf_path)
+
+    html_path = "./html_file/"
+    if not os.path.exists(html_path):
+        os.makedirs(html_path)
+
+    def login(self):
+        # 登录知乎
+        # 打开网页
+        self.browser.get(self.url)
+        self.browser.maximize_window()
+        # 等待 登录选项 出现，并点击
+        password_login = self.wait.until(EC.presence_of_element_located(
+            (By.CSS_SELECTOR, '.SignContainer-switch > span:nth-child(1)')))
+        password_login.click()
+        time.sleep(3)
+        # 等待 账号 出现
+        zhihu_user = self.wait.until(EC.presence_of_element_located(
+            (By.CSS_SELECTOR, '.SignFlow-accountInput > input:nth-child(1)')))
+        zhihu_user.send_keys(self.zhihu_username)
+
+        # 等待 密码 出现
+        zhihu_pwd = self.wait.until(
+            EC.presence_of_element_located(
+                (By.CSS_SELECTOR,
+                 '.SignFlow-password > div:nth-child(1) > div:nth-child(1) > input:nth-child(1)')))
+        zhihu_pwd.send_keys(self.zhihu_password)
+
+        # 等待 登录按钮 出现
+        submit = self.wait.until(
+            EC.presence_of_element_located(
+                (By.CSS_SELECTOR, 'button.Button:nth-child(5)')))
+        submit.click()
+        time.sleep(5)
+
+    def get_pagesource(self, url):
+        # 获得网页源代码
+        self.login()
+        self.browser.get(url=url)
+        self.browser.maximize_window()
+        time.sleep(5)
+
+        # 执行点击动作
+        for i in range(1, 21):
+            content_click = '#Profile-answers > div:nth-child(2) > div:nth-child(' + str(
+                i) + ') > div > div.RichContent.is-collapsed > div.RichContent-inner'
+            try:
+                complete_content = self.wait.until(
+                    EC.presence_of_element_located(
+                        (By.CSS_SELECTOR, content_click)))
+                complete_content.click()
+                time.sleep(1)
+            except BaseException:
+                pass
+        pagedata = self.browser.page_source
+        return pagedata
+
+    def save_to_html(self, base_file_name, url):
+        # 将网页源代码保存为HTML
+        filename = base_file_name + ".html"
+        pagedata = self.get_pagesource(url)
+        with open(self.html_path + filename, "wb") as f:
+            f.write(pagedata.encode("utf-8", "ignore"))
+            f.close()
+        return filename
+
+    def html_to_pdf(self, base_file_name, url):
+        # 将HTML保存为PDF
+        htmlname = self.save_to_html(base_file_name, url)
+        pdfname = base_file_name + ".pdf"
+        htmlfile = open(self.html_path + htmlname, 'r', encoding='utf-8')
+        confg = pdfkit.configuration(
+            wkhtmltopdf=r'D:\htmlpdf\wkhtmltopdf\bin\wkhtmltopdf.exe')
+        pdfkit.from_url(htmlfile, self.pdf_path + pdfname, configuration=confg)
+
+    def Many_to_one(self):
+        # 将多个PDF合成一个
+        filelist = []
+        # 找出所有的pdf文件,并将文件名保存至列表。
+        for filename in os.listdir('./pdf_file'):
+            if filename.endswith('.pdf'):
+                filelist.append(filename)
+
+        # 创建一个新的pdf
+        newPdfFile = PyPDF2.PdfFileWriter()
+
+        # 循环打开每一个pdf文件，将内容添加至新的pdf
+        for filename in filelist:
+            pdfFile = open('./pdf_file/' + filename, 'rb')
+            pdfObj = PyPDF2.PdfFileReader(pdfFile)
+            # 获取页数
+            pageNum = pdfObj.numPages
+
+            for num in range(pageNum):
+                pageContent = pdfObj.getPage(num)
+                newPdfFile.addPage(pageContent)
+
+        newFile = open(self.pdf_path + '恶喵的奶爸.pdf', 'wb')
+        newPdfFile.write(newFile)
+        newFile.close()
+
+
+if __name__ == "__main__":
+    start = time.time()
+    zhihu_username = "2901376616@qq.com"
+    zhihu_password = "mmaxg17258"
+    zhihu = ZhihuInfos()
+    for j in range(2, 5):
+        url = 'https://www.zhihu.com/people/e-miao-de-nai-ba/answers?page=' + \
+              str(j)
+        base_file_name = "zhihu{}".format(j)
+        p = multiprocessing.Process(
+            target=zhihu.html_to_pdf, args=(
+                base_file_name, url))
+        p.daemon = True
+        p.start()
+        p.join()
+    zhihu.Many_to_one()
+    end = time.time()
+    print("共计用时%.4f秒" % (end - start))
